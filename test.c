@@ -4,12 +4,29 @@
 #include "x_webs.h"
 int main(){ 
 
-    char test[] = "GET /hello.html?a=10&bb=2&ccc=a&text=Hello+Dunia%24%28%29s&ssh=sdgkjsdyfudihsfzkabdifhgawebfkdslhfajdsgafj HTTP/1.1\r\n\
+//     char test[] = "GET /hello.html?a=10&bb=2&ccc=a&text=Hello+Dunia%24%28%29s&ssh=sdgkjsdyfudihsfzkabdifhgawebfkdslhfajdsgafj HTTP/1.1\r\n\
+// User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\n\
+// Host: localhost\r\n\
+// Accept-Language: en-us\r\n\
+// Accept-Encoding: gzip, deflate\r\n\
+// Connection: Keep-Alive\r\n";
+
+//     char test[] = "POST /hello.html HTTP/1.1\r\n\
+// User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\n\
+// Host: localhost\r\n\
+// Accept-Language: en-us\r\n\
+// Content-Type: application/x-www-form-urlencoded\r\n\
+// Content-Length: 33\r\n\r\n\
+// username=kocheng&pass=oren+macan";
+
+
+    char test[] = "POST /hello.html HTTP/1.1\r\n\
 User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\r\n\
 Host: localhost\r\n\
 Accept-Language: en-us\r\n\
-Accept-Encoding: gzip, deflate\r\n\
-Connection: Keep-Alive\r\n";
+Content-Type: text/plain\r\n\
+Content-Length: 33\r\n\r\n\
+sebuah isi";
 
     struct xwsParse_ctx_t xwsP;
     xwsParseInit(&xwsP);
