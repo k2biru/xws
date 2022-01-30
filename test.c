@@ -28,7 +28,7 @@ Content-Type: text/plain\r\n\
 Content-Length: 33\r\n\r\n\
 sebuah isi";
 
-    struct xws_ctx_t xwsP;
+    struct xwsCtx_t xwsP;
     xwsInit(&xwsP);
     xwsParse(&xwsP, test);
     char tk[] = "Connection";
