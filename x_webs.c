@@ -1,22 +1,22 @@
 #include "x_webs.h"
 
-OPRT_RET _xwsParseQuery( struct xwsParse_ctx_t *parse, char* query_str){
-    if(!parse) return OPRT_ERR_INVALID_ACCESS;
-    struct xwsParse_ctx_t* p = (struct xwsParse_ctx_t*)parse;
-    if(&p->query) _xwsParseKeyListDelete(&p->query);
-    p->query_size = 0;
+OPRT_RET _xwsQuery( struct xws_ctx_t *xwsCtx, char* query_str){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    // struct xws_ctx_t* xwsCtx = (struct xws_ctx_t*)xwsCtx;
+    if(&xwsCtx->query) _xwsKeyListDelete(&xwsCtx->query);
+    xwsCtx->query_size = 0;
     if(strlen(query_str) == 0){
         return OPRT_OK;
     }
 
     /// counting query
-    p->query_size = 1;
+    xwsCtx->query_size = 1;
     const char *tmp = query_str;
     while(tmp = strstr(tmp, "&")){
-        p->query_size++;
+        xwsCtx->query_size++;
         tmp++;
     }
-    DEBUG_X_WEBS("query_size  |%i|", p->query_size);
+    DEBUG_X_WEBS("query_size  |%i|", xwsCtx->query_size);
 
     uint16_t pos = 0;
     uint8_t ia;
@@ -26,7 +26,7 @@ OPRT_RET _xwsParseQuery( struct xwsParse_ctx_t *parse, char* query_str){
     size_t keySize = 0;
     size_t valueSize = 0;
 
-    for (ia = 0; ia < p->query_size;) {
+    for (ia = 0; ia < xwsCtx->query_size;) {
         char* eq_sign_p = strstr(query_str+pos,"=");
         char* next_q_p = strstr(query_str+pos,"&");  
         // DEBUG_X_WEBS("ia  |%i|%d %d >>>>>>>>>>>>> %i %i", ia, eq_sign_p,next_q_p,(eq_sign_p > next_q_p),(next_q_p != NULL));      
@@ -53,11 +53,11 @@ OPRT_RET _xwsParseQuery( struct xwsParse_ctx_t *parse, char* query_str){
         char* keyPos = query_str+pos;
         char* valuePos = eq_sign_p+1;
 
-        _xwsToolUrlDecode(key  ,keySize+1,keyPos  ,keySize);
-        _xwsToolUrlDecode(value,valueSize+1,valuePos,valueSize);
+        __toolUrlDecode(key  ,keySize+1,keyPos  ,keySize);
+        __toolUrlDecode(value,valueSize+1,valuePos,valueSize);
 
         // DEBUG_X_WEBS("key, val %i |%s| |%s|",ia, key,value);
-        _xwsParseKeyListAdd(&p->query,key,keySize,value,valueSize);
+        _xwsKeyListAdd(&xwsCtx->query,key,keySize,value,valueSize);
         if(key) free(key);
         if(value) free(value);
         key = NULL;
@@ -67,25 +67,25 @@ OPRT_RET _xwsParseQuery( struct xwsParse_ctx_t *parse, char* query_str){
         if (next_q_p == NULL) break;
         pos = next_q_p - query_str + 1;
     }
-    p->query_size = ia;
+    xwsCtx->query_size = ia;
     
-    DEBUG_X_WEBS("total Query  |%i|", p->query_size);
-    for (size_t i = 0; i < p->query_size; i++)    {
+    DEBUG_X_WEBS("total Query  |%i|", xwsCtx->query_size);
+    for (size_t i = 0; i < xwsCtx->query_size; i++)    {
         /* code */
         char *k=NULL;
         char *v=NULL;
-        _xwsParseKeyListGet(&p->query,i,&k,&v);
+        _xwsKeyListGet(&xwsCtx->query,i,&k,&v);
         DEBUG_X_WEBS("Query %i  |%s| |%s|", i, k,v);
     }
     
 }
 
-OPRT_RET _xwsParseHeader( struct xwsParse_ctx_t *parse, char* header_str){
-    if(!parse) return OPRT_ERR_INVALID_ACCESS;
+OPRT_RET _xwsParseHeader( struct xws_ctx_t *xwsCtx, char* header_str){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
 
-    if(&parse->header) _xwsParseKeyListDelete(&parse->header);
-    memset(&parse->header,0,sizeof(struct _xwsParseKeyList_t));
-    parse->headerSize = 0;
+    if(&xwsCtx->header) _xwsKeyListDelete(&xwsCtx->header);
+    memset(&xwsCtx->header,0,sizeof(struct _xwsKeyList_t));
+    xwsCtx->headerSize = 0;
     if(strlen(header_str) == 0){
         return OPRT_OK;
     }
@@ -107,7 +107,7 @@ OPRT_RET _xwsParseHeader( struct xwsParse_ctx_t *parse, char* header_str){
             // no div ":", sory
             break;
         }
-        parse->headerSize++;
+        xwsCtx->headerSize++;
         keySize = (h_div-h_start);
         valueSize = (h_stop-(h_div+2));
         key = (char*)malloc(keySize+1);
@@ -123,25 +123,25 @@ OPRT_RET _xwsParseHeader( struct xwsParse_ctx_t *parse, char* header_str){
         memcpy(value,h_div+2,valueSize);
         
         // DEBUG_X_WEBS("Header |%s||%s|",key,value);
-        _xwsParseKeyListAdd(&parse->header,key,keySize,value,valueSize);
+        _xwsKeyListAdd(&xwsCtx->header,key,keySize,value,valueSize);
         if(__toolStrcicmp(key,"Content-Type")==0){
             if(strstr(value,"text/plain")!=NULL){
-                parse->isForm = 0;
+                xwsCtx->isForm = 0;
             } else if(strstr(value,"application/x-www-form-urlencoded")!=NULL){
-                parse->isForm = 0;
-                parse->isEncode = 1;
+                xwsCtx->isForm = 0;
+                xwsCtx->isEncode = 1;
             }  else if(strstr(value,"multipart/")!=NULL){
-                parse->isForm = 1;
+                xwsCtx->isForm = 1;
                 char *boundary_start = strstr(value,"=")+2; // boundary="xxx"
                 char *boundary_stop = strstr(boundary_start,"\""); // boundary="xxx"
                 size_t boundary_size = boundary_stop-boundary_start;
-                if(parse->boundary) free(parse->boundary);
-                parse->boundary = (char*)malloc(boundary_size+1);
-                memset(parse->boundary,0,boundary_size+1);
-                memcpy(parse->boundary,boundary_start,boundary_size);
+                if(xwsCtx->boundary) free(xwsCtx->boundary);
+                xwsCtx->boundary = (char*)malloc(boundary_size+1);
+                memset(xwsCtx->boundary,0,boundary_size+1);
+                memcpy(xwsCtx->boundary,boundary_start,boundary_size);
             }
         } else if(__toolStrcicmp(key,"Content-Length")==0){
-            parse->contentSize = atoi(value);
+            xwsCtx->contentSize = atoi(value);
         }
         free(key);
         free(value);
@@ -150,12 +150,12 @@ OPRT_RET _xwsParseHeader( struct xwsParse_ctx_t *parse, char* header_str){
         h_start = h_stop+2;        
     }
     
-    DEBUG_X_WEBS("total Header  |%i|", parse->headerSize);
-    for (size_t i = 0; i < parse->headerSize; i++)    {
+    DEBUG_X_WEBS("total Header  |%i|", xwsCtx->headerSize);
+    for (size_t i = 0; i < xwsCtx->headerSize; i++)    {
         /* code */
         char *k=NULL;
         char *v=NULL;
-        _xwsParseKeyListGet(&parse->header,i,&k,&v);
+        _xwsKeyListGet(&xwsCtx->header,i,&k,&v);
         DEBUG_X_WEBS("Header %i  |%s| |%s|", i, k,v);
     }
     
@@ -163,32 +163,32 @@ OPRT_RET _xwsParseHeader( struct xwsParse_ctx_t *parse, char* header_str){
 }
 
 
-OPRT_RET xwsParseHeaderGetValue( struct xwsParse_ctx_t *parse, const char* header, const uint8_t caseSensitive, char **value){
-    if(!parse) return OPRT_ERR_INVALID_ACCESS;
-    return _xwsParseKeyListGetValue(&parse->header,header,caseSensitive, &(*value));
+OPRT_RET xwsHeaderGetValue( struct xws_ctx_t *xwsCtx, const char* header, const uint8_t caseSensitive, char **value){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    return _xwsKeyListGetValue(&xwsCtx->header,header,caseSensitive, &(*value));
 }
 
-OPRT_RET xwsParseHeaderGet( struct xwsParse_ctx_t *parse, const uint8_t index, char **header, char **value){
-    if(!parse) return OPRT_ERR_INVALID_ACCESS;
-    return _xwsParseKeyListGet(&parse->header,index, &(*header), &(*value));
+OPRT_RET xwsHeaderGet( struct xws_ctx_t *xwsCtx, const uint8_t index, char **header, char **value){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    return _xwsKeyListGet(&xwsCtx->header,index, &(*header), &(*value));
 }
 
-OPRT_RET xwsParseQueryGetValue( struct xwsParse_ctx_t *parse, const char* key, const uint8_t caseSensitive, char **value){
-    if(!parse) return OPRT_ERR_INVALID_ACCESS;
-    return _xwsParseKeyListGetValue(&parse->query,key,caseSensitive, &(*value));
+OPRT_RET xwsQueryGetValue( struct xws_ctx_t *xwsCtx, const char* key, const uint8_t caseSensitive, char **value){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    return _xwsKeyListGetValue(&xwsCtx->query,key,caseSensitive, &(*value));
 }
 
-OPRT_RET xwsParseQueryrGet( struct xwsParse_ctx_t *parse, const uint8_t index, char **key, char **value){
-   if(!parse) return OPRT_ERR_INVALID_ACCESS;
-    return _xwsParseKeyListGet(&parse->query,index, &(*key), &(*value));
+OPRT_RET xwsQueryGet( struct xws_ctx_t *xwsCtx, const uint8_t index, char **key, char **value){
+   if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    return _xwsKeyListGet(&xwsCtx->query,index, &(*key), &(*value));
 
 }
 
-OPRT_RET _xwsParseKeyListGetCount( struct _xwsParseKeyList_t *kl, size_t* size){
+OPRT_RET _xwsKeyListGetCount( struct _xwsKeyList_t *kl, size_t* size){
     if(!kl) return OPRT_ERR_INVALID_ACCESS;
     size_t count = 0;
     if(kl->_next != NULL){
-        return _xwsParseKeyListGetCount(kl->_next, &count);
+        return _xwsKeyListGetCount(kl->_next, &count);
     } else {
         count = 0;
     }
@@ -197,10 +197,10 @@ OPRT_RET _xwsParseKeyListGetCount( struct _xwsParseKeyList_t *kl, size_t* size){
     return OPRT_OK;
 }
 
-OPRT_RET _xwsParseKeyListDelete( struct _xwsParseKeyList_t *kl){
+OPRT_RET _xwsKeyListDelete( struct _xwsKeyList_t *kl){
     if(!kl) return OPRT_ERR_INVALID_ACCESS;
     if(kl->_next != NULL){
-        return _xwsParseKeyListDelete(kl->_next);
+        return _xwsKeyListDelete(kl->_next);
     } else {
         if(kl->key) free(kl->key);
         kl->key = NULL;
@@ -210,15 +210,15 @@ OPRT_RET _xwsParseKeyListDelete( struct _xwsParseKeyList_t *kl){
     return OPRT_OK;
 }
 
-OPRT_RET _xwsParseKeyListAdd( struct _xwsParseKeyList_t *kl, const char* key, const size_t key_size, const char* value, const size_t value_size ){
+OPRT_RET _xwsKeyListAdd( struct _xwsKeyList_t *kl, const char* key, const size_t key_size, const char* value, const size_t value_size ){
     if(!kl) return OPRT_ERR_INVALID_ACCESS;
     while(kl->key != NULL){
         if(kl->_next != NULL){
             kl = kl->_next;
         } else {
-            kl->_next = (struct _xwsParseKeyList_t*) malloc(sizeof(struct _xwsParseKeyList_t));
+            kl->_next = (struct _xwsKeyList_t*) malloc(sizeof(struct _xwsKeyList_t));
             if(kl->_next == NULL) return OPRT_ERR_MALLOC_FAILED;
-            memset(kl->_next,0,sizeof(struct _xwsParseKeyList_t));
+            memset(kl->_next,0,sizeof(struct _xwsKeyList_t));
         }
     }
     kl->key = (char*) malloc(key_size+1);
@@ -238,7 +238,7 @@ OPRT_RET _xwsParseKeyListAdd( struct _xwsParseKeyList_t *kl, const char* key, co
     return OPRT_OK;
 }
 
-OPRT_RET _xwsParseKeyListGet(struct _xwsParseKeyList_t *kl, uint8_t index, char **key, char **value){
+OPRT_RET _xwsKeyListGet(struct _xwsKeyList_t *kl, uint8_t index, char **key, char **value){
     if(!kl) return OPRT_ERR_INVALID_ACCESS;
     while (index != 0){
         kl = kl->_next;
@@ -250,7 +250,7 @@ OPRT_RET _xwsParseKeyListGet(struct _xwsParseKeyList_t *kl, uint8_t index, char 
     return OPRT_OK;
 }
 
-OPRT_RET _xwsParseKeyListGetValue(struct _xwsParseKeyList_t *kl, const char *key, const uint8_t caseSensitive, char **value){
+OPRT_RET _xwsKeyListGetValue(struct _xwsKeyList_t *kl, const char *key, const uint8_t caseSensitive, char **value){
     if(!kl) return OPRT_ERR_INVALID_ACCESS;
     if(!key) return OPRT_ERR_INVALID_ARG;
     while((caseSensitive==0? __toolStrcicmp(kl->key, key):strcmp(kl->key,key))!=0){
@@ -261,24 +261,24 @@ OPRT_RET _xwsParseKeyListGetValue(struct _xwsParseKeyList_t *kl, const char *key
     return OPRT_OK;
 }
 
-OPRT_RET xwsParseDelete( struct xwsParse_ctx_t * parse_ctx){
-    if(!parse_ctx) return OPRT_ERR_INVALID_ACCESS;
-    if(parse_ctx->url) free(parse_ctx->url);
-    if(parse_ctx->boundary) free(parse_ctx->boundary);
-    parse_ctx->boundary = NULL;
-    parse_ctx->url = NULL  ;
-    parse_ctx->method = _XWS_HTTP_METHOD_NONE;
-    parse_ctx->query_size = NULL;
-    _xwsParseKeyListDelete(&parse_ctx->header);
-    return  _xwsParseKeyListDelete(&parse_ctx->query);
+OPRT_RET xwsDelete( struct xws_ctx_t * xwsCtx_ctx){
+    if(!xwsCtx_ctx) return OPRT_ERR_INVALID_ACCESS;
+    if(xwsCtx_ctx->url) free(xwsCtx_ctx->url);
+    if(xwsCtx_ctx->boundary) free(xwsCtx_ctx->boundary);
+    xwsCtx_ctx->boundary = NULL;
+    xwsCtx_ctx->url = NULL  ;
+    xwsCtx_ctx->method = _XWS_HTTP_METHOD_NONE;
+    xwsCtx_ctx->query_size = NULL;
+    _xwsKeyListDelete(&xwsCtx_ctx->header);
+    return  _xwsKeyListDelete(&xwsCtx_ctx->query);
 }
 
-OPRT_RET xwsParseInit( struct xwsParse_ctx_t* parse){
-    if(!parse) return OPRT_ERR_INVALID_ACCESS;
-    memset(parse,0, sizeof(struct xwsParse_ctx_t));
+OPRT_RET xwsInit( struct xws_ctx_t* xwsCtx){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    memset(xwsCtx,0, sizeof(struct xws_ctx_t));
 }
 
-OPRT_RET xwsParse( struct xwsParse_ctx_t* parse, char* req){
+OPRT_RET xwsParse( struct xws_ctx_t* xwsCtx, char* req){
     char *path_start =  NULL;
     char *path_stop =  NULL;
     char *q_start =  NULL;
@@ -305,61 +305,61 @@ OPRT_RET xwsParse( struct xwsParse_ctx_t* parse, char* req){
     // get URL
     memcpy(url_b_str,path_start,(path_stop-path_start));
 
-    // parse query
+    // xwsCtx query
     q_start = strstr(url_b_str,"?");
     uint8_t q = (q_start!=NULL);
 
 
     DEBUG_X_WEBS("method |%s|", method_str);
     if(strcmp(method_str,"GET")==0){
-        parse->method = _XWS_HTTP_METHOD_GET;
+        xwsCtx->method = _XWS_HTTP_METHOD_GET;
         
-    DEBUG_X_WEBS("method a%i", parse->method);
+    DEBUG_X_WEBS("method a%i", xwsCtx->method);
     } else if(strcmp(method_str,"POST")==0){
-        parse->method = _XWS_HTTP_METHOD_POST;
+        xwsCtx->method = _XWS_HTTP_METHOD_POST;
     } else {
-        parse->method = _XWS_HTTP_METHOD_NONE;
+        xwsCtx->method = _XWS_HTTP_METHOD_NONE;
     }
-    if(parse->url) free(parse->url);
+    if(xwsCtx->url) free(xwsCtx->url);
     
-    DEBUG_X_WEBS("method %i", parse->method);
+    DEBUG_X_WEBS("method %i", xwsCtx->method);
 
     const size_t url_size = (q? q_start-url_b_str:strlen(url_b_str));
 
     q_start++;
     DEBUG_X_WEBS("url_size %i|%i|", q,url_size);
-    parse->url = (char*) malloc(url_size+1);
-    memset(parse->url,0,url_size+1);
-    memcpy(parse->url,url_b_str,url_size);
+    xwsCtx->url = (char*) malloc(url_size+1);
+    memset(xwsCtx->url,0,url_size+1);
+    memcpy(xwsCtx->url,url_b_str,url_size);
 
     DEBUG_X_WEBS("url_b  |%s|", url_b_str);
-    DEBUG_X_WEBS("url  |%s|", parse->url);
-    if(q) _xwsParseQuery(parse,q_start);  
+    DEBUG_X_WEBS("url  |%s|", xwsCtx->url);
+    if(q) _xwsQuery(xwsCtx,q_start);  
     
     /// http version
     // First line of HTTP looks like "GET /path HTTP/1.1"
     char* http_start = strstr(req,"HTTP/1.");
-    parse->httpVerMiror = http_start[7]-'0';
+    xwsCtx->httpVerMiror = http_start[7]-'0';
 
-    DEBUG_X_WEBS("HTTP V |%i|", parse->httpVerMiror);
+    DEBUG_X_WEBS("HTTP V |%i|", xwsCtx->httpVerMiror);
     char *header_start = strstr(http_start,"\r\n")+2;
     
     // DEBUG_X_WEBS("HTTP Header |%s|", header_start);
-    _xwsParseHeader(parse,header_start);
+    _xwsParseHeader(xwsCtx,header_start);
 
     // char* vs;
-    // _xwsParseKeyListGetValue(&parse->header,"Host",0,&vs);
+    // _xwsKeyListGetValue(&xwsCtx->header,"Host",0,&vs);
     // DEBUG_X_WEBS("HOST |%s|", vs);
-    if(parse->method == _XWS_HTTP_METHOD_POST){
+    if(xwsCtx->method == _XWS_HTTP_METHOD_POST){
         char *contentStart =  strstr(req,"\r\n\r\n")+4;
-        DEBUG_X_WEBS("CONTENT %i|%s|",parse->contentSize,contentStart);
-        if(!parse->isForm){
-            if(parse->isEncode){
-                _xwsParseQuery(parse,contentStart);
+        DEBUG_X_WEBS("CONTENT %i|%s|",xwsCtx->contentSize,contentStart);
+        if(!xwsCtx->isForm){
+            if(xwsCtx->isEncode){
+                _xwsQuery(xwsCtx,contentStart);
             } else {
-                _xwsParseKeyListDelete(&parse->query);
+                _xwsKeyListDelete(&xwsCtx->query);
                 char pl[] ="plain";
-                _xwsParseKeyListAdd(&parse->query,pl,sizeof(pl),contentStart,parse->contentSize);
+                _xwsKeyListAdd(&xwsCtx->query,pl,sizeof(pl),contentStart,xwsCtx->contentSize);
 
             }
         } else { // is form
@@ -370,34 +370,4 @@ OPRT_RET xwsParse( struct xwsParse_ctx_t* parse, char* req){
 }
 
 
-void _xwsToolUrlDecode(char* dest, const size_t dest_size, const char* src, const size_t src_size){
-	char temp[] = "0x00";
-	size_t len = src_size;
-    memset(dest,0,dest_size);
-	unsigned int i = 0;
-    uint8_t j = 0;
-	while (i < len)
-	{
-		char decodedChar;
-		char encodedChar =  src[i++] ;  //get char
-		if ((encodedChar == '%') && (i + 1 < len)){
-			temp[2] =  src[i++];
-			temp[3] =  src[i++];
-			decodedChar = strtol(temp, NULL, 16);
-            // DEBUG_X_WEBS("decodedChar  |%c|%s|", decodedChar,temp);
-		}
-		else {
-			if (encodedChar == '+'){
-				decodedChar = ' ';
-			}
-			else {
-				decodedChar = encodedChar;  // normal ascii char
-			}
-		}
-        dest[j]=decodedChar;
-        // DEBUG_X_WEBS("j  |%i|%c|%s|", j,decodedChar,dest);
-        j++;
-	}
-    return;
-}
 

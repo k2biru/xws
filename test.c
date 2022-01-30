@@ -28,18 +28,18 @@ Content-Type: text/plain\r\n\
 Content-Length: 33\r\n\r\n\
 sebuah isi";
 
-    struct xwsParse_ctx_t xwsP;
-    xwsParseInit(&xwsP);
+    struct xws_ctx_t xwsP;
+    xwsInit(&xwsP);
     xwsParse(&xwsP, test);
     char tk[] = "Connection";
     char * v;
     char *k;
     uint8_t i =2;
-    xwsParseHeaderGetValue(&xwsP,tk,0,&v);
+    xwsHeaderGetValue(&xwsP,tk,0,&v);
     printf("%s : |%s|\n",tk,v);
-    xwsParseHeaderGet(&xwsP,i,&k,&v);
+    xwsHeaderGet(&xwsP,i,&k,&v);
     printf("%i|%s| : |%s|\n",i,k,v);
-    xwsParseDelete(&xwsP);
+    xwsDelete(&xwsP);
 
     return 0;
     
