@@ -4,67 +4,80 @@ OPRT_RET _xwsParseQuery( struct xwsParse_ctx_t *parse, char* query_str){
     if(!parse) return OPRT_ERR_INVALID_ACCESS;
     struct xwsParse_ctx_t* p = (struct xwsParse_ctx_t*)parse;
     if(&p->query) _xwsParseQueryDelete(&p->query);
-    char key[k_f_string_size_medium];
-    char value[k_f_string_size_medium];
-    memset(key,0,k_f_string_size_medium);
-    memset(value,0,k_f_string_size_medium);
-
-    // DEBUG_X_WEBS("HERE");
     p->query_size = 0;
     if(strlen(query_str) == 0){
         return OPRT_OK;
     }
 
-    // DEBUG_X_WEBS("HERE2");
     /// counting query
     p->query_size = 1;
     const char *tmp = query_str;
-    while(tmp = strstr(tmp, "&"))
-    {
-    p->query_size++;
-    tmp++;
+    while(tmp = strstr(tmp, "&")){
+        p->query_size++;
+        tmp++;
     }
-    DEBUG_X_WEBS("p->query_size  |%i|", p->query_size);
+    DEBUG_X_WEBS("query_size  |%i|", p->query_size);
 
-    int pos = 0;
-    int iarg;
-    for (iarg = 0; iarg < p->query_size;) {
+    uint16_t pos = 0;
+    uint8_t ia;
+    
+    char *key = NULL;
+    char *value = NULL;
+    size_t keySize = 0;
+    size_t valueSize = 0;
+
+    for (ia = 0; ia < p->query_size;) {
         char* eq_sign_p = strstr(query_str+pos,"=");
-        char* next_q_p = strstr(query_str+pos,"&");        
-        if((eq_sign_p == NULL) ||((eq_sign_p >next_q_p) && (next_q_p != NULL))){
+        char* next_q_p = strstr(query_str+pos,"&");  
+        // DEBUG_X_WEBS("ia  |%i|%d %d >>>>>>>>>>>>> %i %i", ia, eq_sign_p,next_q_p,(eq_sign_p > next_q_p),(next_q_p != NULL));      
+        if((eq_sign_p == NULL) || ((eq_sign_p > next_q_p) && (next_q_p != NULL))) {
             // tak ada value, sorry
             if(next_q_p == NULL) {
-                // DEBUG_X_WEBS("HERE 4");
                 break;
             }
             pos = next_q_p-query_str +1;
-            DEBUG_X_WEBS("HERE 5");
             continue;
         }
+        keySize = eq_sign_p-(query_str+pos);
+        valueSize = (next_q_p == NULL)? strlen(eq_sign_p+1):next_q_p-eq_sign_p-1;
+        key = (char*) malloc(keySize +1);
+        if(key == NULL) return OPRT_ERR_MALLOC_FAILED;
+        memset(key,0,keySize+1);
+        value = (char*) malloc(valueSize+1);
+        if(value == NULL) {
+            free(key);
+            return OPRT_ERR_MALLOC_FAILED;
+        }
+        memset(value,0,valueSize+1);
 
-        // memset(key,0,k_f_string_size_medium);
-        // memset(value,0,k_f_string_size_medium);
-        // memcpy(key,query_str+pos,eq_sign_p-(query_str+pos));
-        // memcpy(value,eq_sign_p+1,next_q_p-eq_sign_p-1);
+        char* keyPos = query_str+pos;
+        char* valuePos = eq_sign_p+1;
 
-        // DEBUG_X_WEBS("key  |%s|", key);
-        // DEBUG_X_WEBS("val  |%s|", value);
+        _xwsToolUrlDecode(key  ,keySize+1,keyPos  ,keySize);
+        _xwsToolUrlDecode(value,valueSize+1,valuePos,valueSize);
 
-        memset(key,0,k_f_string_size_medium);
-        memset(value,0,k_f_string_size_medium);
-        _xwsToolUrlDecode(key,k_f_string_size_medium,query_str+pos,eq_sign_p-(query_str+pos));
-        _xwsToolUrlDecode(value,k_f_string_size_medium,eq_sign_p+1,next_q_p-eq_sign_p-1);
+        // DEBUG_X_WEBS("key, val %i |%s| |%s|",ia, key,value);
+        _xwsParseQueryAdd(&p->query,key,keySize,value,valueSize);
+        if(key) free(key);
+        if(value) free(value);
+        key = NULL;
+        value = NULL;
 
-        DEBUG_X_WEBS("key, val %i |%s| |%s|",iarg, key,value);
-        _xwsParseQueryAdd(&p->query,key,strlen(key),value,strlen(value));
-
-        ++iarg;
+        ++ia;
         if (next_q_p == NULL) break;
         pos = next_q_p - query_str + 1;
     }
-    p->query_size = iarg;
+    p->query_size = ia;
     
-    DEBUG_X_WEBS("p->query_size  |%i|", p->query_size);
+    DEBUG_X_WEBS("total Query  |%i|", p->query_size);
+    for (size_t i = 0; i < p->query_size; i++)    {
+        /* code */
+        char *k=NULL;
+        char *v=NULL;
+        _xwsParseQueryGet(&p->query,i,&k,&v);
+        DEBUG_X_WEBS("Query %i  |%s| |%s|", i, k,v);
+    }
+    
 }
 
 OPRT_RET _xwsParseQueryGetCount( struct _xwsParseQuery_t *query, size_t* size){
@@ -97,30 +110,43 @@ OPRT_RET _xwsParseQueryDelete( struct _xwsParseQuery_t *query){
 
 OPRT_RET _xwsParseQueryAdd( struct _xwsParseQuery_t *query, const char* key, const size_t key_size, const char* value, const size_t value_size ){
     if(!query) return OPRT_ERR_INVALID_ACCESS;
-    struct _xwsParseQuery_t* q = (struct _xwsParseQuery_t*)query;
-    if(q->key != NULL){
-        q->_next = (struct _xwsParseQuery_t*) malloc(sizeof(struct _xwsParseQuery_t));
-        if(q->_next == NULL) return OPRT_ERR_MALLOC_FAILED;
-        memset(q->_next,0,sizeof(struct _xwsParseQuery_t));
-        return _xwsParseQueryAdd(q->_next, key,key_size,value,value_size);
-    } else {
-        q->key = (char*) malloc(key_size+1);
-        if(q->key == NULL) return OPRT_ERR_MALLOC_FAILED;
-        memset(q->key,0,key_size+1);
-        q->value = (char*) malloc(value_size+1);
-        if(q->value == NULL) {
-            free(q->key);
-            q->key = NULL;
-            return OPRT_ERR_MALLOC_FAILED;
+    while(query->key != NULL){
+        if(query->_next != NULL){
+            query = query->_next;
+        } else {
+            query->_next = (struct _xwsParseQuery_t*) malloc(sizeof(struct _xwsParseQuery_t));
+            if(query->_next == NULL) return OPRT_ERR_MALLOC_FAILED;
+            memset(query->_next,0,sizeof(struct _xwsParseQuery_t));
         }
-        memset(q->value,0,value_size+1);
-        // copy
-        memcpy(q->key,key,key_size);
-        memcpy(q->value,value,value_size);
     }
+    query->key = (char*) malloc(key_size+1);
+    if(query->key == NULL) return OPRT_ERR_MALLOC_FAILED;
+    memset(query->key,0,key_size+1);
+    query->value = (char*) malloc(value_size+1);
+    if(query->value == NULL) {
+        free(query->key);
+        query->key = NULL;
+        return OPRT_ERR_MALLOC_FAILED;
+    }
+    memset(query->value,0,value_size+1);
+    // copy
+    memcpy(query->key,key,key_size);
+    memcpy(query->value,value,value_size);
+    DEBUG_X_WEBS("add q at %i |%s| |%s|", query,query->key,query->value);
     return OPRT_OK;
 }
 
+OPRT_RET _xwsParseQueryGet(struct _xwsParseQuery_t *query, uint8_t index, char **key, char **value){
+    if(!query) return OPRT_ERR_INVALID_ACCESS;
+    while (index != 0){
+        query = query->_next;
+        index--;
+    }
+    // printf ("<><>>>Q %i |%s| |%s|\n", index, query->key, query->value);
+    *key = query->key;
+    *value = query->value;
+    return OPRT_OK;
+}
 
 OPRT_RET xwsParseDelete( struct xwsParse_ctx_t * parse_ctx){
     if(!parse_ctx) return OPRT_ERR_INVALID_ACCESS;
@@ -207,12 +233,12 @@ void _xwsToolUrlDecode(char* dest, const size_t dest_size, const char* src, cons
 	while (i < len)
 	{
 		char decodedChar;
-		char encodedChar =  src[i++] ; // text.charAt(i++);
+		char encodedChar =  src[i++] ;  //get char
 		if ((encodedChar == '%') && (i + 1 < len)){
-			temp[2] =  dest[i++];
-			temp[3] =  dest[i++];
-
+			temp[2] =  src[i++];
+			temp[3] =  src[i++];
 			decodedChar = strtol(temp, NULL, 16);
+            // DEBUG_X_WEBS("decodedChar  |%c|%s|", decodedChar,temp);
 		}
 		else {
 			if (encodedChar == '+'){
@@ -225,10 +251,6 @@ void _xwsToolUrlDecode(char* dest, const size_t dest_size, const char* src, cons
         dest[j]=decodedChar;
         // DEBUG_X_WEBS("j  |%i|%c|%s|", j,decodedChar,dest);
         j++;
-        // memcpy(dest+strlen(dest),&decodedChar,sizeof(decodedChar));
-        // strcat(dest,decodedChar);
-		// decoded += decodedChar;
 	}
-	// return decoded;
     return;
 }

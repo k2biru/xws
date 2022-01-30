@@ -8,9 +8,7 @@ int main(){
     // scanf("%s", &name);
     // printf("Pause %s \n" , name );
 
-    // char test[] = "GET /hello.html?a=10&bb=2&ccc=a&dfd=Hello+G%C3%BCnter HTTP/1.1\
-    
-    char test[] = "GET /hello.html?a=10&bb=2&ccc=a&s=jj HTTP/1.1\
+    char test[] = "GET /hello.html?a=10&bb=2&ccc=a&text=Hello+Dunia%24%28%29s&ssh=sdgkjsdyfudihsfzkabdifhgawebfkdslhfajdsgafj HTTP/1.1\
 User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\
 Host: localhost\
 Accept-Language: en-us\

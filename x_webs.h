@@ -27,6 +27,7 @@ struct xwsParse_ctx_t {
 OPRT_RET _xwsParseQueryGetCount( struct _xwsParseQuery_t *query, size_t* size);
 OPRT_RET _xwsParseQueryDelete( struct _xwsParseQuery_t *query);
 OPRT_RET _xwsParseQueryAdd( struct _xwsParseQuery_t *query, const char* key, const size_t key_size, const char* value, const size_t value_size );
+OPRT_RET _xwsParseQueryGet(struct _xwsParseQuery_t *query, uint8_t index, char **key, char **value);
 
 OPRT_RET xwsParseInit( struct xwsParse_ctx_t* parse);
 OPRT_RET xwsParse( struct xwsParse_ctx_t* parse, char* req);
