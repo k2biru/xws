@@ -15,5 +15,6 @@
 #define OPRT_ERR_INVALID_OPERTATION             (-9)
 #define OPRT_ERR_KEY                            (-10)
 #define OPRT_ERR_SIZE_MAX                       (-11)
+#define OPRT_ERR_NOT_FOUND                      (-12)
 
 #endif //__ERROR_CODE_H
