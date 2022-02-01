@@ -244,6 +244,10 @@ OPRT_RET _xwsKeyListGet(struct _xwsKeyList_t *kl, uint8_t index, char **key, cha
     while (index != 0){
         kl = kl->_next;
         index--;
+        if(kl == NULL) {
+            *value = NULL;
+            return OPRT_ERR_NOT_FOUND;
+        }
     }
     // printf ("<><>>>Q %i |%s| |%s|\n", index, kl->key, kl->value);
     *key = kl->key;
@@ -256,7 +260,10 @@ OPRT_RET _xwsKeyListGetValue(struct _xwsKeyList_t *kl, const char *key, const ui
     if(!key) return OPRT_ERR_INVALID_ARG;
     while((caseSensitive==0? __toolStrcicmp(kl->key, key):strcmp(kl->key,key))!=0){
         kl = kl->_next;
-        if(kl == NULL) return OPRT_ERR_NOT_FOUND;
+        if(kl == NULL) {
+            *value = NULL;
+            return OPRT_ERR_NOT_FOUND;
+        }
     }
     *value = kl->value;
     return OPRT_OK;
@@ -271,7 +278,7 @@ OPRT_RET xwsDelete( struct xwsCtx_t * xwsCtx_ctx){
     xwsCtx_ctx->method = _XWS_HTTP_METHOD_NONE;
     xwsCtx_ctx->querySize = NULL;
     _xwsKeyListDelete(&xwsCtx_ctx->header);
-    _xwsFormDelete(&xwsCtx_ctx->form)
+    _xwsFormDelete(&xwsCtx_ctx->form);
     return  _xwsKeyListDelete(&xwsCtx_ctx->query);
 }
 
@@ -461,6 +468,14 @@ OPRT_RET _xwsFormGet(struct _xwsFormList_t *f,
     while (index != 0){
         f = f->_next;
         index--;
+        if(f == NULL) {
+            *value = NULL;
+            *type = NULL;
+            *fileName = NULL;
+            *content = NULL;
+            contentSize = 0;
+            return OPRT_ERR_NOT_FOUND;
+        }
     }
 
     *name = f->name;
@@ -485,9 +500,16 @@ OPRT_RET _xwsFormGetFromName(struct _xwsFormList_t *f,
     
     if(!f) return OPRT_ERR_INVALID_ACCESS;
     if(!name) return OPRT_ERR_INVALID_ARG;
-    while(strcmp(f->name,name))!=0){
+    while(strcmp(f->name,name)!= 0){
         f = f->_next;
-        if(f == NULL) return OPRT_ERR_NOT_FOUND;
+        if(f == NULL) {
+            *value = NULL;
+            *type = NULL;
+            *fileName = NULL;
+            *content = NULL;
+            contentSize = 0;
+            return OPRT_ERR_NOT_FOUND;
+        }
     }
     
     if(*value != NULL) *value = f->value;
@@ -545,8 +567,8 @@ OPRT_RET _xwsParseForm(struct xwsCtx_t* xwsCtx, char* form){
     char *bStop = NULL;
 
     while (1) {
-        fStart = strstr(fStrat,bMarker);
-        fStop = strstr(fStrat,bMarker)? strlen(fStrat)<
+        fStart = strstr(fStart,bMarker);
+        // fStop = strstr(fStart,bMarker)? strlen(fStart)<
 
     }
     

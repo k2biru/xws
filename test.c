@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "error_code.h"
 #include "f_header.h"
-#include "x_webs.h"
+#include "xws.h"
 int main(){ 
 
 //     char test[] = "GET /hello.html?a=10&bb=2&ccc=a&text=Hello+Dunia%24%28%29s&ssh=sdgkjsdyfudihsfzkabdifhgawebfkdslhfajdsgafj HTTP/1.1\r\n\
