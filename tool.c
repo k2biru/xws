@@ -27,6 +27,18 @@ int __toolStrcicmp(char const *a, char const *b){
             return d;
     }
 }
+char *__toolStrremove(char *str, const char *sub){
+    size_t len = strlen(sub);
+    if (len > 0) {
+        char *p = str;
+        size_t size = 0;
+        while ((p = strstr(p, sub)) != NULL) {
+            size = (size == 0) ? (p - str) + strlen(p + len) + 1 : size - len;
+            memmove(p, p + len, size - (p - str));
+        }
+    }
+    return str;
+}
 
 void __toolUrlDecode(char* dest, const size_t dest_size, const char* src, const size_t src_size){
 	char temp[] = "0x00";

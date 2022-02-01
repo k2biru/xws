@@ -1,4 +1,4 @@
-#include "x_webs.h"
+#include "xws.h"
 
 OPRT_RET _xwsQuery( struct xwsCtx_t *xwsCtx, char* query_str){
     if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
@@ -132,13 +132,14 @@ OPRT_RET _xwsParseHeader( struct xwsCtx_t *xwsCtx, char* header_str){
                 xwsCtx->isEncode = 1;
             }  else if(strstr(value,"multipart/")!=NULL){
                 xwsCtx->isForm = 1;
-                char *boundary_start = strstr(value,"=")+2; // boundary="xxx"
-                char *boundary_stop = strstr(boundary_start,"\""); // boundary="xxx"
+                char *boundary_start = strstr(value,"=")+1; // boundary="xxx"\r\n
+                char *boundary_stop = strstr(boundary_start,"\r\n")-1;
                 size_t boundary_size = boundary_stop-boundary_start;
                 if(xwsCtx->boundary) free(xwsCtx->boundary);
                 xwsCtx->boundary = (char*)malloc(boundary_size+1);
                 memset(xwsCtx->boundary,0,boundary_size+1);
                 memcpy(xwsCtx->boundary,boundary_start,boundary_size);
+                __toolStrremove(xwsCtx->boundary, "\""); // remove " 
             }
         } else if(__toolStrcicmp(key,"Content-Length")==0){
             xwsCtx->contentSize = atoi(value);
@@ -203,9 +204,9 @@ OPRT_RET _xwsKeyListDelete( struct _xwsKeyList_t *kl){
         return _xwsKeyListDelete(kl->_next);
     } else {
         if(kl->key) free(kl->key);
-        kl->key = NULL;
         if(kl->value) free(kl->value);
-        kl->value = NULL;
+        if(kl->_next) free(kl->_next);
+        memset(kl,0,sizeof(struct _xwsKeyList_t));
     }
     return OPRT_OK;
 }
@@ -270,6 +271,7 @@ OPRT_RET xwsDelete( struct xwsCtx_t * xwsCtx_ctx){
     xwsCtx_ctx->method = _XWS_HTTP_METHOD_NONE;
     xwsCtx_ctx->querySize = NULL;
     _xwsKeyListDelete(&xwsCtx_ctx->header);
+    _xwsFormDelete(&xwsCtx_ctx->form)
     return  _xwsKeyListDelete(&xwsCtx_ctx->query);
 }
 
@@ -369,5 +371,185 @@ OPRT_RET xwsParse( struct xwsCtx_t* xwsCtx, char* req){
     
 }
 
+OPRT_RET _xwsFormAdd( struct _xwsFormList_t *f, 
+                      const char* name,
+                      const size_t nameSize,
+                      const char* value,
+                      const size_t valueSize,
+                      const char* type,
+                      const size_t typeSize,
+                      const char* fileName,
+                      const size_t fileNameSize,
+                      const uint8_t *content,
+                      const size_t contentSize){
+    if(!f) return OPRT_ERR_INVALID_ACCESS;
+    if(!name) return OPRT_ERR_INVALID_ARG;
+
+    while(f->name != NULL){
+        if(f->_next != NULL){
+            f = f->_next;
+        } else {
+            f->_next = (struct _xwsFormList_t*) malloc(sizeof(struct _xwsFormList_t));
+            if(f->_next == NULL) return OPRT_ERR_MALLOC_FAILED;
+            memset(f->_next,0,sizeof(struct _xwsFormList_t));
+        }
+    }
+
+    f->name = (char*) malloc(nameSize+1);
+    if(f->name == NULL) goto _xwsFormAdd_failed;
+    memset(f->name,0,nameSize+1);
+    memcpy(f->name,name,nameSize);
+
+    f->value = (char*) malloc(valueSize+1);
+    if(f->value == NULL) goto _xwsFormAdd_failed;
+    memset(f->value,0,valueSize+1);
+    memcpy(f->value,value,valueSize);
+
+    f->type = (char*) malloc(typeSize+1);
+    if(f->type == NULL) goto _xwsFormAdd_failed;
+    memset(f->type,0,typeSize+1);
+    memcpy(f->type,type,typeSize);
+
+    f->fileName = (char*) malloc(fileName+1);
+    if(f->fileName == NULL) goto _xwsFormAdd_failed;
+    memset(f->fileName,0,fileName+1);
+    memcpy(f->fileName,fileName,fileNameSize);
+
+    f->content = (char*) malloc(content);
+    if(f->content == NULL) goto _xwsFormAdd_failed;
+    memcpy(f->content,content,contentSize);
+
+    return OPRT_OK;
+
+    /// failed malloc
+    _xwsFormAdd_failed:
+        if(f->name) free(f->name);
+        if(f->value) free(f->value);
+        if(f->type) free(f->type);
+        if(f->fileName) free(f->fileName);
+        if(f->content) free(f->content);
+        memset(f,0,sizeof(struct _xwsFormList_t));
+        return OPRT_ERR_MALLOC_FAILED;
+}
+
+OPRT_RET _xwsFormDelete( struct _xwsFormList_t *f){
+    if(!f) return OPRT_ERR_INVALID_ACCESS;
+    if(f->_next != NULL){
+        return _xwsFormDelete(f->_next);
+    } else {
+        if(f->name) free(f->name);
+        if(f->value) free(f->value);
+        if(f->type) free(f->type);
+        if(f->fileName) free(f->fileName);
+        if(f->content) free(f->content);
+        if(f->_next) free(f->_next);
+        memset(f,0,sizeof(struct _xwsFormList_t));
+    }
+    return OPRT_OK;
+}
+
+OPRT_RET _xwsFormGet(struct _xwsFormList_t *f, 
+                    uint8_t index,
+                    char **name,
+                    char **value,
+                    char **type,
+                    char **fileName,
+                    uint8_t **content,
+                    size_t *contentSize
+                    ){
+    if(!f) return OPRT_ERR_INVALID_ACCESS;
+    while (index != 0){
+        f = f->_next;
+        index--;
+    }
+
+    *name = f->name;
+    if(*value != NULL) *value = f->value;
+    if(*type != NULL) *type = f->type;
+    if(*fileName != NULL) *fileName = f->fileName;
+    if(*content != NULL) {
+        *content = f->content;
+        contentSize = f->contentSize;
+    }
+    return OPRT_OK;
+}
+
+OPRT_RET _xwsFormGetFromName(struct _xwsFormList_t *f, 
+                    const char *name,
+                    char **value,
+                    char **type,
+                    char **fileName,
+                    uint8_t **content,
+                    size_t *contentSize
+                    ){
+    
+    if(!f) return OPRT_ERR_INVALID_ACCESS;
+    if(!name) return OPRT_ERR_INVALID_ARG;
+    while(strcmp(f->name,name))!=0){
+        f = f->_next;
+        if(f == NULL) return OPRT_ERR_NOT_FOUND;
+    }
+    
+    if(*value != NULL) *value = f->value;
+    if(*type != NULL) *type = f->type;
+    if(*fileName != NULL) *fileName = f->fileName;
+    if(*content != NULL) {
+        *content = f->content;
+        contentSize = f->contentSize;
+    }
+    return OPRT_OK;
+}
+
+OPRT_RET xwsFormGetFromName(struct xwsCtx_t *xwsCtx, const char *name, char **value, char **type, char **fileName, uint8_t **content, size_t *contentSize){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    return _xwsFormGetFromName(&xwsCtx->form,name,&(*value),&(*type),&(*fileName),&(*content),contentSize);
+}
+
+OPRT_RET xwsFormGet(struct xwsCtx_t *xwsCtx,uint8_t index, char **name, char **value, char **type, char **fileName,uint8_t **content,size_t *contentSize){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    return _xwsFormGet(&xwsCtx->form,index,&(*name),&(*value),&(*type),&(*fileName),&(*content),contentSize);
+}
 
 
+
+// POST /test HTTP/1.1
+// Host: foo.example
+// Content-Type: multipart/form-data;boundary="boundary"
+//
+// --boundary
+// Content-Disposition: form-data; name="field1"
+//
+// value1
+// --boundary
+// Content-Disposition: form-data; name="field2"; filename="example.txt"
+//
+// value2
+// --boundary--
+
+// WIP
+OPRT_RET _xwsParseForm(struct xwsCtx_t* xwsCtx, char* form){
+    if(!xwsCtx) return OPRT_ERR_INVALID_ACCESS;
+    // read boundary
+
+    if (xwsCtx->boundary == NULL) return OPRT_ERR_INVALID_OPERTATION;
+
+    const size_t bMarkerSize = strlen(xwsCtx->boundary)+2;
+    char *bMarker = (char*) malloc(bMarkerSize+1);
+    memset(bMarker,0,bMarkerSize+1);
+    memcpy(bMarker,"--",2);
+    memcpy(bMarker+2,xwsCtx->boundary,strlen(xwsCtx->boundary));
+
+    char *fStart = form;
+    char *fStop = NULL;
+    char *bStart = NULL;
+    char *bStop = NULL;
+
+    while (1) {
+        fStart = strstr(fStrat,bMarker);
+        fStop = strstr(fStrat,bMarker)? strlen(fStrat)<
+
+    }
+    
+    if(bMarker) free(bMarker);
+
+}

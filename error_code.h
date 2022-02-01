@@ -1,5 +1,5 @@
-#ifndef __ERROR_CODE_H
-#define __ERROR_CODE_H
+#ifndef __ERRORX_CODE_H
+#define __ERRORX_CODE_H
 
 #define OPRT_RET    int
 
